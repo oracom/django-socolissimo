@@ -36,7 +36,7 @@ class SoColissimoClient(object):
             raise ValueError('SoColissimo contract number must be an int')
         self.password = password
 
-    @classmethod
+    @staticmethod
     def check_service_health():
         """
         Tell if the colissimo service is up and healthy.

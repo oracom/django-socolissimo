@@ -87,7 +87,7 @@ class Parcel(SoColissimoSchema):
         return weight
 
     def _set_constants(self, parcel):
-        parcel.insuranceRange = 00
+        parcel.insuranceRange = "00"
         parcel.DeliveryMode = "DOM"
         parcel.ReturnReceipt = False
         parcel.Recommendation = False
