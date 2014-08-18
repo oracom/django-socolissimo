@@ -11,7 +11,7 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         "Django",
-        "suds >= 0.4",
-    ],
-    zip_safe=False
+        "suds-jurko >= 0.6",
+        "requests",
+    ]
 )
