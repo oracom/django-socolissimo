@@ -23,8 +23,23 @@ class SoColissimoException(Exception):
 soap_client = Client(SoColissimoSettings.WSDL)
 
 class SoColissimoClient(object):
+    """Main entry point for generating SoColissimo letters via the webservice"""
+
     def __init__(self, contract_number=SoColissimoSettings.CONTRACT_NUMBER,
                  password=SoColissimoSettings.PASSWORD):
+        """
+        Prepare the client to generate some letters with a pair of credentials.
+        
+        If no credentials are explicitely given, will try to fallback on the credentials
+        found in the django project settings.
+        
+        Args:
+            contract_number (str or int, optional): your SoColissimo contract number
+            password (str, optional): your SoColissimo password
+        
+        Raises:
+            ValueError: The credentials are invalid
+        """
         if not contract_number:
             raise ValueError('Please provide a socolissimo contract number')
         if not password:
@@ -48,6 +63,43 @@ class SoColissimoClient(object):
         return response.status_code == 200 and response.content.strip() == "[OK]"
 
     def get_letter(self, service_call_context, parcel, recipient, sender):
+        """
+        Issue a request to the webservice to generate a SoCOlissimo label.
+        
+        Each argument is a dict containing the labelling data as defined by the schema.
+        The minimum required data to validate are :
+        
+        client.getletter(
+        service_call_context={
+            'dateDeposite': ...,
+            'commercialName': ...
+        },
+        parcel={
+            'weight': ...
+        },
+        recipient={
+            'addressVO': {
+                'Name': ...,
+                'Surname' : ...,
+                'email': ...,
+                'line2': ...,
+                'countryCode': ...,
+                'postalCode': ...,
+                'city': ...}
+        },
+        sender={
+            'addressVO': {
+                'line2': ...,
+                'countryCode': ...,
+                'postalCode': ...,
+                'city': ...}
+        })
+        
+        For complete description of available fields, see the schema module.
+        
+        Returns:
+            TODO
+        """
         letter = soap_client.factory.create('Letter')
         letter.password = self.password
         letter.contractNumber = self.contract_number
