@@ -98,7 +98,10 @@ class SoColissimoClient(object):
         For complete description of available fields, see the schema module.
         
         Returns:
-            TODO
+            A tuple (parcel_number, pdf_url)
+            
+        Raises:
+            SoColissimoException: When something goes wrong with the webservice call.
         """
         letter = soap_client.factory.create('Letter')
         letter.password = self.password
@@ -124,4 +127,7 @@ class SoColissimoClient(object):
         except WebFault as e:
             raise SoColissimoException("Exception in the SOAP client : {}".format(e))
 
-        # print response
+        if response.errorID != 0:
+            raise SoColissimoException("Error {} : {}".format(response.errorID, response.error))
+
+        return response.parcelNumber, response.PdfUrl
