@@ -69,7 +69,7 @@ class SoColissimoClient(object):
         Each argument is a dict containing the labelling data as defined by the schema.
         The minimum required data to validate are :
         
-        client.getletter(
+        parcel_number, pdf_url = client.getletter(
         service_call_context={
             'dateDeposite': ...,
             'commercialName': ...
