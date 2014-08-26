@@ -119,7 +119,6 @@ class SoColissimoClient(object):
 
         sender_schema = ParcelSender(sender)
         letter.exp = sender_schema.build_instance()
-        # print letter
 
         try:
             # soap_client.set_options(nosend=True)

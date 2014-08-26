@@ -96,10 +96,12 @@ class ServiceCallContext(SoColissimoSchema):
 
     dateDeposite = DateTimeField(required=True)
     commercialName = CharField(required=True)
+
     VATCode = ChoiceField(required=False, choices=[ (vat, vat) for vat in range(3) ])
     VATPercentage = IntegerField(required=False, min_value=0, max_value=9999)
     VATAmount = IntegerField(required=False, min_value=0)
     transportationAmount = IntegerField(required=False, min_value=0)
+    totalAmount = IntegerField(required=False, min_value=0)
     commandNumber = CharField(required=False)
 
     def _set_constants(self, service):
@@ -114,11 +116,15 @@ class ServiceCallContext(SoColissimoSchema):
 
 class Parcel(SoColissimoSchema):
     soap_type_name = "ParcelVO"
+    DELIVERY_MODES = ('DOM', 'RDV', 'BPR', 'ACP', 'CDI', 'A2P',
+                      'MRL', 'CIT', 'DOS', 'CMT', 'BDP')
+
 
     weight = DecimalField(required=True, min_value=0, max_value=30, decimal_places=2)
+    DeliveryMode = ChoiceField(required=False, choices=[(d, d) for d in DELIVERY_MODES])
     horsGabarit = BooleanField(required=False)
 
-    insuranceAmount = IntegerField(required=False, min_value=0)
+    insuranceValue = IntegerField(required=False, min_value=0)
     HorsGabaritAmount = IntegerField(required=False, min_value=0)
     Instructions = CharField(required=False)
 
@@ -129,9 +135,15 @@ class Parcel(SoColissimoSchema):
             weight = int(weight)
         return weight
 
+    def clean_DeliveryMode(self):
+        """ Default to "DOM" delivery mode if not specified """
+        delivery_mode = self.cleaned_data.get('delivery_mode')
+        if not delivery_mode:
+            delivery_mode = "DOM"
+        return delivery_mode
+
     def _set_constants(self, parcel):
         parcel.insuranceRange = "00"
-        parcel.DeliveryMode = "DOM"
         parcel.ReturnReceipt = False
         parcel.Recommendation = False
 
@@ -139,27 +151,28 @@ class Address(SoColissimoSchema):
     """
     Address schema, shared by sender and recipient
     """
-
     soap_type_name = "AddressVO"
+    COUNTRIES = [('FR', 'France'), ('MC', 'Monaco')]
+    CIVILITIES = ['M', 'Mlle', 'Mme']
+
+    Name = CharField(required=False, help_text='Nom')
+    Surname = CharField(required=False, help_text='Prénom')
+    email = EmailField(required=False)
+    line2 = CharField(required=True, help_text='Numéro et libellé de voie')
+    countryCode = ChoiceField(required=True, choices=COUNTRIES)
+    city = CharField(required=True)
+    postalCode = CharField(required=True)
 
     companyName = CharField(required=False)
-    Civility = CharField(required=False)
-    Name = CharField(required=False)
-    Surname = CharField(required=False)
-    line0 = CharField(required=False)
-    line1 = CharField(required=False)
-    line2 = CharField(required=True)
-    line3 = CharField(required=False)
+    Civility = ChoiceField(required=False, choices=[(c, c) for c in CIVILITIES])
+    line0 = CharField(required=False, help_text='Etage, couloir, escalier, n° d’appartement')
+    line1 = CharField(required=False, help_text='Entrée, bâtiment, immeuble, résidence')
+    line3 = CharField(required=False, help_text='Lieu dit ou autre mention spéciale')
     phone = CharField(required=False)
     MobileNumber = CharField(required=False)
     DoorCode1 = CharField(required=False)
     DoorCode2 = CharField(required=False)
     Interphone = CharField(required=False)
-    country = CharField(required=False)
-    countryCode = CharField(required=True)
-    city = CharField(required=True)
-    email = EmailField(required=False)
-    postalCode = CharField(required=True)
 
 class RecipientAddress(Address):
     """
