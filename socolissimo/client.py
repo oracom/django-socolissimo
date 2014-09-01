@@ -1,45 +1,52 @@
 # -*- coding: utf-8 -*-
+"""Client for the web service SoColissimo."""
 import requests
 
 from django.conf import settings
 from suds.client import Client
 from suds import WebFault
 
-from socolissimo.schema import ServiceCallContext, ParcelRecipient, Parcel, ParcelSender
+from socolissimo.schema import (ServiceCallContext, ParcelRecipient, Parcel,
+                                ParcelSender)
 
-class SoColissimoSettings:
-    WSDL = "https://ws.colissimo.fr/soap.shippingclpV2/services/WSColiPosteLetterService?wsdl"
-    ENDPOINT = "https://ws.colissimo.fr/soap.shippingclpV2/services/WSColiPosteLetterService"
-    HEALTH_CHECK = "http://ws.colissimo.fr/supervisionWSShipping/supervision.jsp"
 
-    # Optionnal config via django settings
-    CONTRACT_NUMBER = getattr(settings, 'SOCOLISSIMO_CONTRACT_NUMBER', None)
-    PASSWORD = getattr(settings, 'SOCOLISSIMO_PASSWORD', None)
+# Service URLs.
+BASE_SERVICE_URL = 'https://ws.colissimo.fr/soap.shippingclpV2/services/'
+WSDL_URL = '{}{}'.format(BASE_SERVICE_URL, 'WSColiPosteLetterService?wsdl')
+ENDPOINT_URL = '{}{}'.format(BASE_SERVICE_URL, 'WSColiPosteLetterService')
+SUPERVISION_URL = 'http://ws.colissimo.fr/supervisionWSShipping/supervision.jsp'
+
 
 class SoColissimoException(Exception):
     """Exception happening in the SoColissimo scope"""
     pass
 
-soap_client = Client(SoColissimoSettings.WSDL)
+
+soap_client = Client(WSDL_URL)
+
 
 class SoColissimoClient(object):
     """Main entry point for generating SoColissimo letters via the webservice"""
 
-    def __init__(self, contract_number=SoColissimoSettings.CONTRACT_NUMBER,
-                 password=SoColissimoSettings.PASSWORD):
-        """
-        Prepare the client to generate some letters with a pair of credentials.
-        
-        If no credentials are explicitely given, will try to fallback on the credentials
-        found in the django project settings.
-        
+    def __init__(self, contract_number=None, password=None):
+        """Prepare the client to generate some letters with credentials.
+
+        If no credentials are explicitely given, will try to fallback on the
+        credentials found in the django project settings.
+
         Args:
-            contract_number (str or int, optional): your SoColissimo contract number
-            password (str, optional): your SoColissimo password
-        
+            contract_number (str or int, optional): Your SoColissimo contract
+                number.
+            password (str, optional): Your SoColissimo password.
+
         Raises:
-            ValueError: The credentials are invalid
+            ValueError: The credentials are invalid.
         """
+        if contract_number is None:
+            contract_number = getattr(settings, 'SOCOLISSIMO_CONTRACT_NUMBER',
+                                      None)
+        if password is None:
+            password = getattr(settings, 'SOCOLISSIMO_PASSWORD', None)
         if not contract_number:
             raise ValueError('Please provide a socolissimo contract number')
         if not password:
@@ -53,22 +60,21 @@ class SoColissimoClient(object):
 
     @staticmethod
     def check_service_health():
-        """
-        Tell if the colissimo service is up and healthy.
-        
+        """Tell if the colissimo service is up and healthy.
+
         Returns:
             True if the service is up, False if the service is down
         """
-        response = requests.get(SoColissimoSettings.HEALTH_CHECK)
-        return response.status_code == 200 and response.content.strip() == "[OK]"
+        response = requests.get(SUPERVISION_URL)
+        return response.status_code == 200 \
+            and response.content.strip() == "[OK]"
 
     def get_letter(self, service_call_context, parcel, recipient, sender):
-        """
-        Issue a request to the webservice to generate a SoCOlissimo label.
-        
-        Each argument is a dict containing the labelling data as defined by the schema.
-        The minimum required data to validate are :
-        
+        """Issue a request to the webservice to generate a SoColissimo label.
+
+        Each argument is a dict containing the labelling data as defined by the
+        schema. The minimum required data to validate are :
+
         parcel_number, pdf_url = client.getletter(
         service_call_context={
             'dateDeposite': ...,
@@ -94,14 +100,14 @@ class SoColissimoClient(object):
                 'postalCode': ...,
                 'city': ...}
         })
-        
+
         For complete description of available fields, see the schema module.
-        
+
         Returns:
             A tuple (parcel_number, pdf_url)
-            
+
         Raises:
-            SoColissimoException: When something goes wrong with the webservice call.
+            SoColissimoException: Something goes wrong with the webservice call.
         """
         letter = soap_client.factory.create('Letter')
         letter.password = self.password
@@ -123,10 +129,12 @@ class SoColissimoClient(object):
         try:
             # soap_client.set_options(nosend=True)
             response = soap_client.service.getLetterColissimo(letter)
-        except WebFault as e:
-            raise SoColissimoException("Exception in the SOAP client : {}".format(e))
+        except WebFault as exc:
+            msg = 'Exception in the SOAP client : {}'.format(exc)
+            raise SoColissimoException(msg)
 
         if response.errorID != 0:
-            raise SoColissimoException("Error {} : {}".format(response.errorID, response.error))
+            msg = "Error {} : {}".format(response.errorID, response.error)
+            raise SoColissimoException(msg)
 
         return response.parcelNumber, response.PdfUrl

@@ -54,3 +54,8 @@ Get a SoColissimo label with these minimal required arguments
             })
 
 More data can be added to the dict arguments, see schema.py
+
+Testing
+------------
+
+Requires the [Mock library](https://pypi.python.org/pypi/mock).

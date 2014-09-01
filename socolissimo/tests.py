@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-
+"""Module tests."""
 import datetime
-from mock import Mock, patch
+from mock import patch
 from django.test import SimpleTestCase
 from socolissimo import client as client_module
 from socolissimo.client import SoColissimoClient
@@ -12,48 +12,56 @@ from socolissimo.schema import SchemaValidationError
 CONTRACT_NUMBER = '123'
 PASSWORD = 'password'
 
-letter_required_kwargs = dict(
-service_call_context={
-    'dateDeposite': datetime.datetime.now(),
-    'commercialName': 'Chuck Norris'
-},
-parcel={
-    'weight': '10.20'
-},
-recipient={
-    'addressVO': {
-        'Name': 'Norris',
-        'Surname' : 'Chuck',
-        'email': 'chuck.norris@awesome.com',
-        'line2': '1 round-kick street',
-        'countryCode': 'FR',
-        'postalCode': '01000',
-        'city': 'Bourg-en-Bresse'}
-},
-sender={
-    'addressVO': {
-        'line2': '1 round-kick street',
-        'countryCode': 'FR',
-        'postalCode': '01000',
-        'city': 'Bourg-en-Bresse'}
-})
+LETTER_REQUIRED_KWARGS = dict(
+    service_call_context={
+        'dateDeposite': datetime.datetime.now(),
+        'commercialName': 'Chuck Norris'
+    },
+    parcel={
+        'weight': '10.20'
+    },
+    recipient={
+        'addressVO': {
+            'Name': 'Norris',
+            'Surname' : 'Chuck',
+            'email': 'chuck.norris@awesome.com',
+            'line2': '1 round-kick street',
+            'countryCode': 'FR',
+            'postalCode': '01000',
+            'city': 'Bourg-en-Bresse'}
+    },
+    sender={
+        'addressVO': {
+            'line2': '1 round-kick street',
+            'countryCode': 'FR',
+            'postalCode': '01000',
+            'city': 'Bourg-en-Bresse'}
+    })
+
 
 class TestClient(SimpleTestCase):
     def get_client(self):
-        return SoColissimoClient(contract_number=CONTRACT_NUMBER, password=PASSWORD)
+        return SoColissimoClient(contract_number=CONTRACT_NUMBER,
+                                 password=PASSWORD)
 
     def test_init(self):
-        self.assertRaises(ValueError, SoColissimoClient)
-        # No password
-        self.assertRaises(ValueError, SoColissimoClient, contract_number=CONTRACT_NUMBER)
-        # No contract number
-        self.assertRaises(ValueError, SoColissimoClient, password=PASSWORD)
-        # contract number is not an int
-        self.assertRaises(ValueError, SoColissimoClient, contract_number='contract_number', password=PASSWORD)
+        with self.settings(SOCOLISSIMO_CONTRACT_NUMBER=None,
+                           SOCOLISSIMO_PASSWORD=None):
+            # No password
+            self.assertRaises(ValueError, SoColissimoClient,
+                              contract_number=CONTRACT_NUMBER,
+                              password=None)
+            # No contract number
+            self.assertRaises(ValueError, SoColissimoClient, contract_number=None,
+                              password=PASSWORD)
+            # contract number is not an int
+            self.assertRaises(ValueError, SoColissimoClient,
+                              contract_number='contract_number', password=PASSWORD)
 
-        client = SoColissimoClient(contract_number=CONTRACT_NUMBER, password=PASSWORD)
-        self.assertEqual(client.contract_number, int(CONTRACT_NUMBER))
-        self.assertEqual(client.password, PASSWORD)
+            client = SoColissimoClient(contract_number=CONTRACT_NUMBER,
+                                       password=PASSWORD)
+            self.assertEqual(client.contract_number, int(CONTRACT_NUMBER))
+            self.assertEqual(client.password, PASSWORD)
 
     def test_init_from_settings(self):
         with self.settings(SOCOLISSIMO_CONTRACT_NUMBER=CONTRACT_NUMBER,
@@ -64,7 +72,7 @@ class TestClient(SimpleTestCase):
             self.assertEqual(client.password, PASSWORD)
 
     def test_check_service_health(self):
-        with patch('socolissimo.client.requests')  as mock_requests:
+        with patch('socolissimo.client.requests') as mock_requests:
             mock_requests.get.return_value.status_code = 200
             mock_requests.get.return_value.content = '  [OK]  '
             self.assertTrue(SoColissimoClient.check_service_health())
@@ -74,8 +82,10 @@ class TestClient(SimpleTestCase):
 
     def test_get_letter_ok(self):
         client = self.get_client()
-        with patch('socolissimo.client.soap_client.service.getLetterColissimo') as soap_call_mock:
-            client.get_letter(**letter_required_kwargs)
+        to_patch = 'socolissimo.client.soap_client.service.getLetterColissimo'
+        with patch(to_patch) as soap_call_mock:
+            soap_call_mock.return_value.errorID = 0
+            client.get_letter(**LETTER_REQUIRED_KWARGS)
 
             letter = soap_call_mock.call_args[0][0]
             self.assertEquals(letter.service.returnType, 'CreatePDFFile')
@@ -111,9 +121,11 @@ class TestClient(SimpleTestCase):
                         yield dict_copy
 
         client = self.get_client()
-        with patch('socolissimo.client.soap_client.service.getLetterColissimo'):
-            for dict_with_missing_param in remove_one_param_iter(letter_required_kwargs):
-                self.assertRaises(SchemaValidationError, client.get_letter, **dict_with_missing_param)
+        to_patch = 'socolissimo.client.soap_client.service.getLetterColissimo'
+        with patch(to_patch):
+            for invalid_dict in remove_one_param_iter(LETTER_REQUIRED_KWARGS):
+                self.assertRaises(SchemaValidationError, client.get_letter,
+                                  **invalid_dict)
 
     def test_get_letter_invalid_param(self):
         client = self.get_client()
@@ -127,9 +139,8 @@ class TestClient(SimpleTestCase):
             return dict_copy
 
         def assert_invalid_param(deep_key, value):
-            self.assertRaises(SchemaValidationError,
-                              client.get_letter,
-                              **modified_dict(letter_required_kwargs, deep_key, value))
+            invalid_dict = modified_dict(LETTER_REQUIRED_KWARGS, deep_key, value)
+            self.assertRaises(SchemaValidationError, client.get_letter, **invalid_dict)
 
         # Not a valid choice
         assert_invalid_param('service_call_context.VATCode', 4)
@@ -146,14 +157,7 @@ class TestClient(SimpleTestCase):
         assert_invalid_param('parcel.weight', '-1')
         assert_invalid_param('parcel.weight', '31')
         assert_invalid_param('parcel.weight', '10.005')
-        # Not a valid VAT amount
-        assert_invalid_param('parcel.insuranceAmount', -1)
+        # Not a valid assurance value
+        assert_invalid_param('parcel.insuranceValue', -1)
         # Not a valid transportation amount
         assert_invalid_param('parcel.HorsGabaritAmount', -1)
-
-
-
-
-
-
-
