@@ -22,7 +22,29 @@ class SoColissimoException(Exception):
     pass
 
 
-soap_client = Client(WSDL_URL)
+class SoapClientConstructor(object):  # pylint: disable=R0903
+    """"Constructor to creat soap client at first call.
+
+    We can't set client as a constant because it prevent server to start without
+    connexion to service.
+    """
+
+    client = None
+
+    def instanciate(self):
+        """Instanciate the soap client."""
+        if self.client is None:
+            self.client = Client(WSDL_URL)
+
+    @property
+    def soap_client(self):
+        """Return soap client."""
+        self.instanciate()
+        return self.client
+
+
+SOAP_CLIENT = SoapClientConstructor()
+# soap_client = Client(WSDL_URL)
 
 
 class SoColissimoClient(object):
@@ -57,6 +79,8 @@ class SoColissimoClient(object):
         except ValueError:
             raise ValueError('SoColissimo contract number must be an int')
         self.password = password
+        # Start client.
+        SOAP_CLIENT.instanciate()
 
     @staticmethod
     def check_service_health():
@@ -109,6 +133,8 @@ class SoColissimoClient(object):
         Raises:
             SoColissimoException: Something goes wrong with the webservice call.
         """
+        soap_client = SOAP_CLIENT.soap_client
+
         letter = soap_client.factory.create('Letter')
         letter.password = self.password
         letter.contractNumber = self.contract_number

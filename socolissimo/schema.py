@@ -54,8 +54,8 @@ class SoColissimoSchema(Form):
             raise SchemaValidationError(self.__class__.__name__,
                                         repr(self.errors))
 
-        from .client import soap_client
-        instance = soap_client.factory.create(self.soap_type_name)
+        from socolissimo.client import SOAP_CLIENT
+        instance = SOAP_CLIENT.soap_client.factory.create(self.soap_type_name)
 
         for field, value in self.cleaned_data.items():
             if value not in EMPTY_VALUES:

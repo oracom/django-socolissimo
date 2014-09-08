@@ -82,7 +82,7 @@ class TestClient(SimpleTestCase):
 
     def test_get_letter_ok(self):
         client = self.get_client()
-        to_patch = 'socolissimo.client.soap_client.service.getLetterColissimo'
+        to_patch = 'socolissimo.client.SOAP_CLIENT.soap_client.service.getLetterColissimo'
         with patch(to_patch) as soap_call_mock:
             soap_call_mock.return_value.errorID = 0
             client.get_letter(**LETTER_REQUIRED_KWARGS)
@@ -121,7 +121,7 @@ class TestClient(SimpleTestCase):
                         yield dict_copy
 
         client = self.get_client()
-        to_patch = 'socolissimo.client.soap_client.service.getLetterColissimo'
+        to_patch = 'socolissimo.client.SOAP_CLIENT.soap_client.service.getLetterColissimo'
         with patch(to_patch):
             for invalid_dict in remove_one_param_iter(LETTER_REQUIRED_KWARGS):
                 self.assertRaises(SchemaValidationError, client.get_letter,
