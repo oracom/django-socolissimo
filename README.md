@@ -6,7 +6,11 @@ Client for the labeling webservice from SoColissimo
 Installation
 ------------
 
-    pip install https://github.com/oracom/django-socolissimo
+```
+$ git clone https://github.com/oracom/django-socolissimo.git
+$ cd django-socolissimo/
+$ python setup.py install
+```
 
 Configuration
 ------------
